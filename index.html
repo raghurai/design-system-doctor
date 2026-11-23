@@ -100,6 +100,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
 .lbl{position:absolute;left:0;top:0;white-space:nowrap;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;will-change:transform}
 .lbl.axis{font-size:12px}
 .lbl.row{font-weight:600;color:var(--ink);font-size:12.5px;background:color-mix(in srgb,var(--panel) 88%,transparent);padding:2px 7px;border-radius:6px;border:1px solid var(--line)}
+.lbl.ratio-off{color:var(--flag);font-weight:600}
 .lbl.chip{background:color-mix(in srgb,var(--panel) 85%,transparent);padding:1px 6px;border-radius:5px}
 .lbl.mark{width:16px;height:16px;border-radius:50%;background:var(--flag);color:#fff;font-weight:700;font-size:11px;line-height:16px;text-align:center;padding:0;box-shadow:0 0 0 2px var(--panel);pointer-events:none}
 #tip .t-fix{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:13px;line-height:1.45}
@@ -840,24 +841,59 @@ const VIEWS = {
   },
   type: {
     title: "Type scale", count: m => new Set(m.type.map(t => t.px)).size,
-    legend: "Font sizes stacked largest to smallest. Plate width is the size, so the profile of the stack is the curve of your type scale.",
+    legend: "Each card shows real text at that size, smallest to largest. The number between cards is the step ratio, and the dashed line is where a steady scale would put each size.",
     empty: "No type sizes found. Sizes are read from typography tokens or dimensions named font-size, text size or type scale.",
     build(m){
       const by = new Map();
       for (const t of m.type) by.set(t.px, (by.get(t.px) || []).concat(t));
-      const sizes = [...by.keys()].filter(x => x > 0).sort((a, b) => b - a);
-      const max = sizes[0] || 1, step = 13, th = 4;
-      sizes.forEach((px, i) => {
-        const s = Math.max(10, px / max * 220), y = i * step;
-        const n = sizes.length;
-        const p = new THREE.Mesh(boxGeo, colorMat(seqColor(n > 1 ? i / (n - 1) : 0)));
-        p.scale.set(s, th, s); p.position.set(0, y + th / 2, 0);
-        const names = by.get(px);
-        addPick(p, { kind: "type", tok: { name: names.map(x => x.name).join(", "), px, raw: names[0].raw, list: names } });
-        label(`${fmt(px, 1)}px  ${names[0].name.split(".").pop()}${names.length > 1 ? " +" + (names.length - 1) : ""}`, s / 2 + 6, y + th / 2, s / 2, "val chip", "translateY(-50%)");
-        if (names.some(x => issuesOf(x.name))) label("!", -s / 2, y + th, s / 2, "mark", "translate(-50%,-50%)");
+      const sizes = [...by.keys()].filter(x => x > 0).sort((a, b) => a - b);
+      const n = sizes.length, max = sizes[n - 1];
+      const sc = 150 / max, gap = 22;
+      const ratios = sizes.slice(1).map((x, i) => x / sizes[i]);
+      const mean = ratios.length ? Math.exp(ratios.reduce((s, r) => s + Math.log(r), 0) / ratios.length) : 1;
+      const near = SCALES.reduce((a, b) => Math.abs(b[0] - mean) < Math.abs(a[0] - mean) ? b : a);
+      const bi = sizes.reduce((b, x, i) => Math.abs(x - 16) < Math.abs(sizes[b] - 16) ? i : b, 0);
+      const ideal = sizes.map((_, i) => sizes[bi] * Math.pow(near[0], i - bi));
+      const ink = cssVar("--ink") || "#E8ECF2", card = cssVar("--panel") || "#1B2130", flag = cssVar("--flag") || "#E0862B";
+      const cards = []; let x = 0;
+      sizes.forEach(px => { const h = Math.max(14, px * sc * 1.25), w = h * 1.35; cards.push({ px, w, h, x: x + w / 2 }); x += w + gap; });
+      const ox = -(x - gap) / 2;
+      const actual = [], dashed = [];
+      cards.forEach((c, i) => {
+        const cx = ox + c.x, names = by.get(c.px);
+        const cv = document.createElement("canvas"), R = 256;
+        cv.width = Math.round(R * c.w / c.h); cv.height = R;
+        const g = cv.getContext("2d");
+        g.fillStyle = card; g.fillRect(0, 0, cv.width, R);
+        g.fillStyle = ink; g.textAlign = "center"; g.textBaseline = "alphabetic";
+        g.font = `500 ${Math.round(R / 1.25)}px "Instrument Sans", system-ui, sans-serif`;
+        g.fillText("Ag", cv.width / 2, R * 0.78);
+        const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+        const geo = new THREE.BoxGeometry(c.w, c.h, 3);
+        const side = new THREE.MeshStandardMaterial({ color: new THREE.Color(card).convertSRGBToLinear(), roughness: 0.8 });
+        const face = new THREE.MeshBasicMaterial({ map: tex });
+        const mesh = new THREE.Mesh(geo, [side, side, side, side, face, side]);
+        mesh.position.set(cx, c.h / 2, 0);
+        addPick(mesh, { kind: "type", tok: { name: names.map(t => t.name).join(", "), px: c.px, raw: names[0].raw, list: names } });
+        const off = names.some(t => issuesOf(t.name));
+        if (off) { const box = segs([[-1,0],[1,0],[1,0],[1,2],[1,2],[-1,2],[-1,2],[-1,0]].map(([a, b]) => new THREE.Vector3(cx + a * (c.w / 2 + 1.5), b * (c.h / 2 + 0.75), 2)), 0.9); box.material.color.set(new THREE.Color(flag).convertSRGBToLinear()); box.material.opacity = 1; group.add(box); }
+        label(`${fmt(c.px, 1)}px`, cx, 0, 6, "val chip", "translate(-50%,6px)");
+        if (n <= 14) label(names[0].name.split(".").pop() + (names.length > 1 ? ` +${names.length - 1}` : ""), cx, 0, 6, "", "translate(-50%,28px)");
+        if (i) {
+          const r = c.px / cards[i - 1].px, odd = Math.abs(r - mean) > 0.06;
+          label(`×${r.toFixed(2)}`, cx - c.w / 2 - gap / 2, Math.min(c.h, cards[i - 1].h) + 14, 6, odd ? "chip ratio-off" : "chip", "translate(-50%,-130%)");
+        }
+        mark(names[0].name, cx, c.h + 4, 0);
+        actual.push(new THREE.Vector3(cx, c.h + 0.5, 2));
+        const ih = Math.max(14, ideal[i] * sc * 1.25);
+        dashed.push(new THREE.Vector3(cx - c.w / 2, ih, 2), new THREE.Vector3(cx + c.w / 2, ih, 2));
       });
-      return { target: [0, sizes.length * step / 2, 0], theta: 0.78, phi: 1.12, radius: 560 };
+      const ideal3 = new THREE.LineDashedMaterial({ color: new THREE.Color(cssVar("--accent") || "#7C9CFF").convertSRGBToLinear(), dashSize: 4, gapSize: 3 });
+      const idl = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(dashed), ideal3); idl.computeLineDistances(); group.add(idl);
+      if (actual.length > 1) group.add(polyline(actual, 0.35));
+      group.add(segs([new THREE.Vector3(ox - 10, 0, 0), new THREE.Vector3(-ox + 10, 0, 0)], 0.5));
+      const legendHTML = `${this.legend} Closest steady ratio: <b>${near[1]} (×${near[0]})</b>.`;
+      return { target: [0, 75, 0], theta: 0, phi: 1.4, radius: Math.max(x * 0.98, 340) + 90, legendHTML };
     }
   },
   radius: {
@@ -895,7 +931,7 @@ let model = null, current = "space3d";
 function clearScene(){
   if (group) {
     scene.remove(group);
-    group.traverse(o => { if (o.geometry && o.geometry !== sphereGeo && o.geometry !== boxGeo) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    group.traverse(o => { if (o.geometry && o.geometry !== sphereGeo && o.geometry !== boxGeo) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(mt => { if (mt.map) mt.map.dispose(); mt.dispose(); }); });
   }
   group = new THREE.Group(); scene.add(group);
   labels = []; pickables = []; labelsEl.innerHTML = "";
