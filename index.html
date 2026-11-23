@@ -584,20 +584,20 @@ const fmt = (n, d = 0) => Number(n.toFixed(d)).toString();
 const dE = (a, b) => Math.hypot(a.L - b.L, a.A - b.A, a.B - b.B);
 
 function insights(m){
-  const groups = [];
+  const groups = [], C = n => `<code>${esc(n)}</code>`, B = v => `<b>${v}</b>`;
   const cf = [], base = m.baseColors;
   if (base.length) {
     const aliasCount = m.colors.length - base.length;
-    if (aliasCount) cf.push({ t: `${aliasCount} semantic tokens point to existing colors and share their positions in the view.`, fix: `Good practice. Keep adding new UI colors as aliases of these base colors instead of new hex values, so the palette doesn't grow by accident.` });
-    else if (base.length > 8) cf.push({ gap: true, t: "No semantic color tokens found; every color is a raw value.", fix: `Add a semantic layer (for example <code>bg.page</code>, <code>text.primary</code>, <code>border.subtle</code>) that points to these base colors, so components use roles instead of raw swatches.` });
+    if (aliasCount) cf.push({ t: `${aliasCount} role colors (like backgrounds and text) reuse your base colors. Good.`, fix: `When you need a new UI color, point it at an existing base color instead of adding a new hex value.` });
+    else if (base.length > 8) cf.push({ gap: true, t: "Every color is a raw value. There are no role colors like background or text.", fix: `Add role tokens such as ${C("bg.page")}, ${C("text.primary")} and ${C("border.subtle")} that point to your base colors, and use those in components.` });
     const pairs = [];
     for (let i = 0; i < base.length; i++) for (let j = i + 1; j < base.length; j++) {
       const d = dE(base[i].ok, base[j].ok);
       if (d < 0.015) pairs.push([base[i], base[j], d]);
     }
     pairs.sort((a, b) => a[2] - b[2]);
-    pairs.slice(0, 6).forEach(([a, b, d]) => cf.push({ flag: true, names: [a.name, b.name], t: `<code>${esc(a.name)}</code> and <code>${esc(b.name)}</code> are nearly identical (ΔE ${d.toFixed(3)}).`, fix: `Keep one. Point <code>${esc(b.name)}</code> to <code>{${esc(a.name)}}</code>, or move it far enough to be a distinct step.` }));
-    if (pairs.length > 6) cf.push({ flag: true, names: pairs.slice(6).flatMap(([a, b]) => [a.name, b.name]), t: `${pairs.length - 6} more near-duplicate pairs.`, fix: `They're marked with ! in Color space. Merge each pair the same way: keep one value and alias the other to it.` });
+    pairs.slice(0, 6).forEach(([a, b]) => cf.push({ flag: true, names: [a.name, b.name], t: `${C(a.name)} and ${C(b.name)} look the same. Nobody can tell them apart.`, fix: `Delete one and point it at the other: set ${C(b.name)} to ${C("{" + a.name + "}")}.` }));
+    if (pairs.length > 6) cf.push({ flag: true, names: pairs.slice(6).flatMap(([a, b]) => [a.name, b.name]), t: `${pairs.length - 6} more pairs of colors look the same.`, fix: `Find them by the ! marks in Color space. For each pair, keep one and point the other at it.` });
     for (const f of m.families) {
       if (!f.numeric || f.items.length < 3) continue;
       const Ls = f.items.map(i => i.c.ok.L);
@@ -606,57 +606,60 @@ function insights(m){
         if (Math.sign(Ls[i] - Ls[i - 1]) === -dir && Math.abs(Ls[i] - Ls[i - 1]) > 0.005) {
           const lo = Ls[i - 1], hi = i + 1 < Ls.length ? Ls[i + 1] : Ls[i - 1] + dir * 0.06;
           const target = Math.min(0.99, Math.max(0.01, (lo + hi) / 2));
-          cf.push({ flag: true, names: [f.items[i].c.name], t: `In <code>${esc(f.name)}</code>, step ${esc(f.items[i].step)} is ${dir < 0 ? "lighter" : "darker"} than ${esc(f.items[i - 1].step)}, breaking the lightness ramp.`, fix: `Set its OKLCH lightness to about ${target.toFixed(2)} (now ${Ls[i].toFixed(2)}), keeping hue and chroma, so it sits between its neighbors.` });
+          const want = target < Ls[i] ? "darker" : "lighter";
+          cf.push({ flag: true, names: [f.items[i].c.name], t: `${C(f.name + " " + f.items[i].step)} is ${dir < 0 ? "lighter" : "darker"} than ${C(f.name + " " + f.items[i - 1].step)}. It's out of order.`, fix: `Make ${C(f.name + " " + f.items[i].step)} ${want} so it sits between its neighbors (lightness about ${B(target.toFixed(2))} in OKLCH, now ${Ls[i].toFixed(2)}).` });
         }
       }
     }
     const chromatic = base.filter(c => c.ok.C > 0.04);
     if (chromatic.length) {
       const sectors = new Set(chromatic.map(c => Math.floor((c.ok.h * 180 / Math.PI) / 30) % 12));
-      cf.push({ gap: sectors.size < 4, t: `Chromatic colors occupy ${sectors.size} of 12 hue sectors (30° each).`, fix: sectors.size < 4 ? `The palette is narrow. Add at least one more distinct hue so charts, tags and status colors can be told apart.` : sectors.size > 9 ? `That's a wide spread. Make sure each hue has a job (brand, status, data viz); drop hues nothing uses.` : `A healthy spread. When you add a hue, give it a purpose and a full ramp rather than a single swatch.` });
+      if (sectors.size < 4) cf.push({ gap: true, t: `Your palette uses only ${sectors.size} hue${sectors.size > 1 ? "s" : ""}.`, fix: `Add at least one more distinct hue so charts, tags and status colors can be told apart.` });
+      else if (sectors.size > 9) cf.push({ t: `Your palette uses ${sectors.size} different hues. That's a lot.`, fix: `Give each hue a job (brand, status, charts). Remove the ones nothing uses.` });
+      else cf.push({ t: `Your palette uses ${sectors.size} different hues. A good spread.`, fix: `When you add a hue, give it a clear job and a full set of light-to-dark steps.` });
     }
     const hueOf = c => (c.ok.h * 180 / Math.PI + 360) % 360;
-    const need = [["red", h => h < 45 || h >= 345, "errors and destructive actions"], ["green", h => h >= 120 && h < 175, "success states"], ["amber/yellow", h => h >= 55 && h < 110, "warnings"]];
+    const need = [["red", h => h < 45 || h >= 345, "errors and delete buttons"], ["green", h => h >= 120 && h < 175, "success messages"], ["amber", h => h >= 55 && h < 110, "warnings"]];
     for (const [name, test, use] of need) if (!chromatic.some(c => test(hueOf(c))))
-      cf.push({ gap: true, t: `No ${name} hue in the palette.`, fix: `Add a ${name} ramp for ${use}, with steps matching your other ramps.` });
+      cf.push({ gap: true, t: `No ${name} color.`, fix: `Add a ${name} ramp for ${use}.` });
     const ramps = m.families.filter(f => f.numeric);
     const longest = Math.max(0, ...ramps.map(f => f.items.length));
     const short = ramps.filter(f => longest >= 6 && f.items.length <= longest / 2);
-    if (short.length) cf.push({ gap: true, t: `${short.length === 1 ? "One ramp is" : short.length + " ramps are"} much shorter than your longest (${longest} steps): ${short.map(f => `<code>${esc(f.name)}</code> (${f.items.length})`).join(", ")}.`, fix: `If these colors need light tints or dark shades (backgrounds, borders, hover states), fill in the missing steps.` });
-    if (!cf.some(x => x.flag || x.gap)) cf.push({ t: "No near-duplicates or broken lightness ramps.", fix: "Keep it that way: when adding a color, check it in Color space first and add it as a full ramp." });
+    if (short.length) cf.push({ gap: true, t: `${short.map(f => `${C(f.name)} has ${f.items.length} steps`).join(", ")}. Your fullest ramp has ${longest}.`, fix: `If you need light backgrounds or dark text in these colors, add the missing steps.` });
+    if (!cf.some(x => x.flag || x.gap)) cf.push({ t: "No duplicate colors and every ramp is in order.", fix: "Keep it that way: check new colors in Color space before adding them." });
     groups.push(["Color", cf]);
   }
   for (const set of m.modeSets) {
-    const mf = [], n = set.tokens.length;
+    const mf = [], n = set.tokens.length, other = set.modes.slice(1).map(esc).join(" and ");
     const same = set.tokens.filter(t => { const p = t.per.filter(Boolean); return p.every(x => dE(x.ok, p[0].ok) < 0.002); });
-    mf.push(same.length
-      ? { flag: same.length > 0 && same.length < n, names: same.length < n ? same.map(t => t.name) : [], t: `${same.length} of ${n} tokens keep the same value in every mode${same.length <= 3 ? ": " + same.map(t => `<code>${esc(t.name)}</code>`).join(", ") : ""}.`, fix: same.length < n ? `Check each one. If it is meant to stay fixed (a brand color, say), leave it; otherwise give it a value tuned for ${set.modes.slice(1).map(esc).join(" and ")}, usually a lighter step of the same ramp for dark backgrounds.` : "" }
-      : { t: `All ${n} tokens change between modes.`, fix: `Every token has a mode-specific value. Next, check text and surface pairs for contrast in each mode.` });
+    if (same.length && same.length < n) mf.push({ flag: true, names: same.map(t => t.name), t: `${same.length === 1 ? C(same[0].name) + " doesn't" : same.length + " tokens don't"} change in ${other} mode${same.length > 1 && same.length <= 3 ? ": " + same.map(t => C(t.name)).join(", ") : ""}.`, fix: `If ${same.length === 1 ? "it's" : "they're"} meant to stay the same (like a brand color), leave ${same.length === 1 ? "it" : "them"}. Otherwise set a ${other} value, usually a lighter step of the same color.` });
+    else if (same.length === n) mf.push({ gap: true, t: `No token changes in ${other} mode.`, fix: `Give backgrounds, text and borders their own ${other} values.` });
+    else mf.push({ t: `Every token has its own ${other} value.`, fix: `Next, check that text stays readable on its background in each mode.` });
     let big = null;
     for (const t of set.tokens) {
       const p = t.per.filter(Boolean);
       const sw = Math.max(...p.map(x => x.ok.L)) - Math.min(...p.map(x => x.ok.L));
-      if (!big || sw > big.sw) big = { t, sw, p };
+      if (!big || sw > big.sw) big = { t, sw };
     }
-    if (big && big.sw > 0.01) mf.push({ t: `Largest lightness swing: <code>${esc(big.t.name)}</code> moves ${big.sw.toFixed(2)} in L across ${set.modes.map(esc).join(" and ")}.`, fix: /bg|background|surface|page|canvas/i.test(big.t.name) ? `Expected for a background. Make sure text tokens swing the opposite way so contrast holds in both modes.` : `Big swings are fine for backgrounds and text. If this is a brand or accent color, check it still feels like the same color in both modes.` });
+    if (big && big.sw > 0.01) mf.push({ t: `${C(big.t.name)} changes the most between modes.`, fix: /bg|background|surface|page|canvas/i.test(big.t.name) ? `That's normal for a background. Make sure your text colors flip the other way so they stay readable.` : `If this is a brand color, check it still looks like the same color in both modes.` });
     groups.push([`${esc(set.collection)} modes`, mf]);
   }
   if (m.space.length) {
     const sf = [];
     const nonZero = m.space.filter(s => s.px > 0 && !s.aliasOf);
     const grid = [8, 4].find(g => nonZero.length && nonZero.every(s => s.px % g === 0));
-    if (grid) sf.push({ t: `Every spacing value sits on a ${grid}px grid.`, fix: `Keep new spacing values on the ${grid}px grid, and reuse an existing step before adding a new one.` });
+    if (grid) sf.push({ t: `All spacing values are multiples of ${grid}.`, fix: `Keep it that way. Reuse an existing value before adding a new one.` });
     else {
       const off = nonZero.filter(s => s.px % 4 !== 0);
-      sf.push({ flag: true, names: off.map(s => s.name), t: `${off.length} value${off.length > 1 ? "s" : ""} off the 4px grid: ${off.slice(0, 5).map(s => `<code>${esc(s.name)}</code> (${fmt(s.px, 1)}px)`).join(", ")}.`, fix: `Round to the grid: ${off.slice(0, 5).map(s => `<code>${esc(s.name)}</code> → <b>${Math.max(4, Math.round(s.px / 4) * 4)}px</b>`).join(", ")}.` });
+      sf.push({ flag: true, names: off.map(s => s.name), t: `${off.slice(0, 5).map(s => `${C(s.name)} (${fmt(s.px, 1)}px)`).join(", ")} ${off.length > 1 ? "aren't multiples" : "isn't a multiple"} of 4.`, fix: `Change ${off.slice(0, 5).map(s => `${C(s.name)} to ${B(Math.max(4, Math.round(s.px / 4) * 4) + "px")}`).join(", ")}.` });
     }
     const seen = new Map();
     for (const s of m.space) { if (s.aliasOf) continue; seen.set(s.px, (seen.get(s.px) || []).concat(s.name)); }
-    for (const [px, names] of seen) if (names.length > 1) sf.push({ flag: true, names: names.slice(1), t: `${names.length} tokens share ${fmt(px, 1)}px: ${names.slice(0, 3).map(n => `<code>${esc(n)}</code>`).join(", ")}.`, fix: `Keep <code>${esc(names[0])}</code> as the value and turn the others into aliases of it, or remove them.` });
+    for (const [px, names] of seen) if (names.length > 1) sf.push({ flag: true, names: names.slice(1), t: `${names.slice(0, 3).map(C).join(" and ")} are both ${fmt(px, 1)}px.`, fix: `Keep ${C(names[0])}. Point the others at it, or remove them.` });
     const vals = [...new Set(nonZero.map(s => s.px))].sort((a, b) => a - b);
     for (let i = 1; i < vals.length; i++) if (vals[i] / vals[i - 1] > 2.1 && vals[i] >= 24) {
       const mid = Math.round(Math.sqrt(vals[i] * vals[i - 1]) / 4) * 4;
-      sf.push({ gap: true, t: `Big jump from ${fmt(vals[i - 1], 1)}px to ${fmt(vals[i], 1)}px.`, fix: `Add a step around <b>${mid}px</b> so layouts don't have to choose between too tight and too loose.` });
+      sf.push({ gap: true, t: `Nothing between ${fmt(vals[i - 1], 1)}px and ${fmt(vals[i], 1)}px.`, fix: `Add a ${B(mid + "px")} step.` });
     }
     groups.push(["Spacing", sf]);
   }
@@ -667,46 +670,44 @@ function insights(m){
     const mean = Math.exp(ratios.reduce((s, r) => s + Math.log(r), 0) / ratios.length);
     const near = SCALES.reduce((a, b) => Math.abs(b[0] - mean) < Math.abs(a[0] - mean) ? b : a);
     const spread = Math.max(...ratios) - Math.min(...ratios);
-    tf.push({ t: `${sizes.length} sizes from ${fmt(sizes[0], 1)} to ${fmt(sizes[sizes.length - 1], 1)}px, average step ×${mean.toFixed(3)}, closest to a ${near[1]} (${near[0]}).`, fix: `Use ×${near[0]} as the rule for new sizes: the next size up would be about ${Math.round(sizes[sizes.length - 1] * near[0])}px, and the next down about ${Math.round(sizes[0] / near[0])}px.` });
-    tf.push(spread > 0.12
-      ? { flag: true, t: `Steps vary from ×${Math.min(...ratios).toFixed(2)} to ×${Math.max(...ratios).toFixed(2)}, so the scale isn't strictly modular.` }
-      : { t: "Steps are close to a consistent ratio.", fix: "Keep it modular: derive any new size from the same ratio rather than picking a round number." });
     if (spread > 0.12) {
       const bi = sizes.reduce((b, x, i) => Math.abs(x - 16) < Math.abs(sizes[b] - 16) ? i : b, 0);
       const ideal = sizes.map((_, i) => Math.round(sizes[bi] * Math.pow(near[0], i - bi)));
-      const offIdx = new Set(); ratios.forEach((r, i) => { if (Math.abs(r - mean) > 0.06) offIdx.add(i + 1); });
-      tf[1].names = [...offIdx].flatMap(i => m.type.filter(t => t.px === sizes[i]).map(t => t.name));
-      tf[1].fix = `The uneven steps land on ${[...offIdx].map(i => `${fmt(sizes[i], 1)}px`).join(", ")}. For a steady ${near[1]} scale from ${fmt(sizes[bi], 1)}px use ${ideal.map((v, i) => v === Math.round(sizes[i]) ? `${v}` : `<b>${v}</b>`).join(" · ")}px (changes in bold).`;
-    }
-    if (sizes.length < 5) tf.push({ gap: true, t: `Only ${sizes.length} type sizes.`, fix: `Most interfaces need at least 5: caption, body, a subheading and two headings.` });
+      const offIdx = [...new Set(ratios.flatMap((r, i) => Math.abs(r - mean) > 0.06 ? [i + 1] : []))];
+      tf.push({ flag: true, names: offIdx.flatMap(i => m.type.filter(t => t.px === sizes[i]).map(t => t.name)), t: `Your text sizes don't grow evenly. The ${offIdx.length > 1 ? "jumps" : "jump"} to ${offIdx.map(i => fmt(sizes[i], 1) + "px").join(" and ")} ${offIdx.length > 1 ? "are" : "is"} bigger or smaller than the rest.`, fix: `For even steps (×${near[0]} each), use ${ideal.map((v, i) => v === Math.round(sizes[i]) ? `${v}` : B(v)).join(" · ")}px. The bold ones are what changes.` });
+    } else tf.push({ t: `Your text sizes grow evenly, about ×${near[0]} each step.`, fix: `Keep it that way. Make new sizes with the same ×${near[0]} step.` });
+    tf.push({ t: `${sizes.length} text sizes, from ${fmt(sizes[0], 1)}px to ${fmt(sizes[sizes.length - 1], 1)}px.`, fix: `If you need one more, use ${B(Math.round(sizes[sizes.length - 1] * near[0]) + "px")} above or ${B(Math.round(sizes[0] / near[0]) + "px")} below.` });
+    if (sizes.length < 5) tf.push({ gap: true, t: `Only ${sizes.length} text sizes.`, fix: `Add sizes until you have at least 5: caption, body, subheading and two headings.` });
     groups.push(["Type scale", tf]);
   }
   if (m.radius.length) {
     const rf = [], pill = m.radius.filter(r => r.px >= 999);
     const rest = m.radius.filter(r => r.px < 999).map(r => r.px).sort((a, b) => a - b);
-    if (rest.length) rf.push({ t: `Corners run from ${fmt(rest[0], 1)} to ${fmt(rest[rest.length - 1], 1)}px across ${rest.length} steps.`, fix: rest.length > 7 ? `That's a lot of corner options. Most systems need 4–6; merge steps that look alike in the Radius view.` : rest.length < 3 ? `Consider at least small, medium and large radii so inputs, cards and dialogs can differ.` : `A workable range. Map each step to a component size (small for inputs and tags, larger for cards and dialogs) and document it.` });
+    if (rest.length > 7) rf.push({ gap: true, t: `${rest.length} corner sizes. That's more than most systems need.`, fix: `Cut down to 4–6. Merge the ones that look alike in the Radius view.` });
+    else if (rest.length && rest.length < 3) rf.push({ gap: true, t: `Only ${rest.length} corner size${rest.length > 1 ? "s" : ""}.`, fix: `Add small, medium and large so inputs, cards and dialogs can differ.` });
+    else if (rest.length) rf.push({ t: `${rest.length} corner sizes, from ${fmt(rest[0], 1)}px to ${fmt(rest[rest.length - 1], 1)}px.`, fix: `Write down which size each component uses, like small for inputs and large for cards.` });
     const odd = m.radius.filter(r => r.px > 0 && r.px < 999 && r.px % 2 !== 0);
-    if (odd.length) rf.push({ flag: true, names: odd.map(r => r.name), t: `${odd.length} radius value${odd.length > 1 ? "s are" : " is"} odd: ${odd.map(r => `<code>${esc(r.name)}</code> (${fmt(r.px, 1)}px)`).join(", ")}.`, fix: `Round to an even value so corners render crisply: ${odd.map(r => `<code>${esc(r.name)}</code> → <b>${Math.round(r.px / 2) * 2}px</b>`).join(", ")}.` });
+    if (odd.length) rf.push({ flag: true, names: odd.map(r => r.name), t: `${odd.map(r => `${C(r.name)} (${fmt(r.px, 1)}px)`).join(", ")} ${odd.length > 1 ? "are odd numbers" : "is an odd number"}.`, fix: `Change ${odd.map(r => `${C(r.name)} to ${B(Math.round(r.px / 2) * 2 + "px")}`).join(", ")}. Even values render more cleanly.` });
     const rseen = new Map(); for (const r of m.radius) if (!r.aliasOf) rseen.set(r.px, (rseen.get(r.px) || []).concat(r.name));
-    for (const [px, names] of rseen) if (names.length > 1) rf.push({ flag: true, names: names.slice(1), t: `${names.length} radius tokens share ${px >= 999 ? "the pill value" : fmt(px, 1) + "px"}: ${names.map(n => `<code>${esc(n)}</code>`).join(", ")}.`, fix: `Keep <code>${esc(names[0])}</code> and alias or remove the others.` });
-    for (let i = 1; i < rest.length; i++) if (rest[i - 1] > 0 && rest[i] / rest[i - 1] < 1.2 && rest[i] - rest[i - 1] < 2 && rest[i] !== rest[i - 1]) rf.push({ flag: true, names: m.radius.filter(r => r.px === rest[i]).map(r => r.name), t: `${fmt(rest[i - 1], 1)}px and ${fmt(rest[i], 1)}px are too close to tell apart.`, fix: `Merge them, or move one so neighboring steps differ by at least 2px.` });
-    if (pill.length) rf.push({ t: `<code>${esc(pill[0].name)}</code> is a full pill radius.`, fix: `Use it for pills, avatars and toggles only, so fully round shapes keep a clear meaning.` });
-    else rf.push({ gap: true, t: "No full pill radius.", fix: `Add <code>radius.full</code> (9999px) for pills, avatars and toggles instead of hard-coding large values.` });
+    for (const [px, names] of rseen) if (names.length > 1) rf.push({ flag: true, names: names.slice(1), t: `${names.map(C).join(" and ")} are both ${px >= 999 ? "full pill" : fmt(px, 1) + "px"}.`, fix: `Keep ${C(names[0])}. Point the others at it, or remove them.` });
+    for (let i = 1; i < rest.length; i++) if (rest[i - 1] > 0 && rest[i] / rest[i - 1] < 1.2 && rest[i] - rest[i - 1] < 2 && rest[i] !== rest[i - 1]) rf.push({ flag: true, names: m.radius.filter(r => r.px === rest[i]).map(r => r.name), t: `${fmt(rest[i - 1], 1)}px and ${fmt(rest[i], 1)}px corners look the same.`, fix: `Merge them into one, or move one at least 2px away.` });
+    if (pill.length) rf.push({ t: `${C(pill[0].name)} makes fully round shapes.`, fix: `Use it only for pills, avatars and toggles.` });
+    else rf.push({ gap: true, t: "No fully round corner.", fix: `Add ${C("radius.full")} = 9999px for pills, avatars and toggles.` });
     groups.push(["Radius", rf]);
   }
   const missing = [];
-  if (!base.length) missing.push(["color", "a palette of base colors and semantic tokens that point to them"]);
-  if (!m.space.length) missing.push(["spacing", "a spacing scale on a 4px or 8px grid, such as 4, 8, 12, 16, 24, 32, 48"]);
-  if (!sizes.length) missing.push(["type", "font-size tokens, such as 12, 14, 16, 20, 24, 32"]);
-  if (!m.radius.length) missing.push(["radius", "a few corner radii, such as 4, 8, 12 and a full pill"]);
-  if (base.length && !m.modeSets.length) missing.push(["modes", "a dark mode: a semantic collection with Light and Dark values"]);
-  if (missing.length) groups.push(["What's missing", missing.map(([k, v]) => ({ gap: true, t: `No ${k} tokens found.`, fix: `Add ${v}.` }))]);
+  if (!base.length) missing.push(["colors", "Add your base color ramps, then role colors that point to them."]);
+  if (!m.space.length) missing.push(["spacing", "Add a spacing scale in multiples of 4: 4, 8, 12, 16, 24, 32, 48."]);
+  if (!sizes.length) missing.push(["text sizes", "Add text sizes such as 12, 14, 16, 20, 24, 32."]);
+  if (!m.radius.length) missing.push(["corner sizes", "Add a few corner sizes: 4, 8, 12 and a full pill."]);
+  if (base.length && !m.modeSets.length) missing.push(["dark mode", "Add a role-color collection with Light and Dark values."]);
+  if (missing.length) groups.push(["What's missing", missing.map(([k, v]) => ({ gap: true, t: `No ${k}.`, fix: v }))]);
   return groups;
 }
 
 let rounds = [], roundAt = -1, lastSig = "";
 function areaView(title, item){
-  if (title === "Color") return /ramp|steps|lightness/i.test(item.t) ? "ramps" : "space3d";
+  if (title === "Color") return /out of order|steps|ramp/i.test(item.t + item.fix) ? "ramps" : "space3d";
   if (/ modes$/.test(title)) return "modes";
   return { "Spacing": "spacing", "Type scale": "type", "Radius": "radius" }[title] || null;
 }
@@ -742,7 +743,7 @@ function renderInsights(m){
     </div>` +
     areas.map(({ title, items, st }) => `<div class="area finding-group"><div class="area-h"><h3>${title}</h3><span class="pill ${st[0]}">${st[1]}</span></div><ul>${items.map(i => {
       const isRound = i.round !== undefined;
-      return `<li class="${i.flag ? "flag" : i.gap ? "gap" : ""}${isRound ? " issue" : ""}"${isRound ? ` data-round="${i.round}" tabindex="0"` : ""}><span>${i.t}${i.fix ? `<span class="fix"><b>Prescription:</b> ${i.fix}</span>` : ""}</span></li>`;
+      return `<li class="${i.flag ? "flag" : i.gap ? "gap" : ""}${isRound ? " issue" : ""}"${isRound ? ` data-round="${i.round}" tabindex="0"` : ""}><span>${i.t}${i.fix ? `<span class="fix"><b>What to do:</b> ${i.fix}</span>` : ""}</span></li>`;
     }).join("")}</ul></div>`).join("");
   const btn = document.getElementById("roundsBtn");
   if (btn) btn.addEventListener("click", () => goRound(0));
@@ -798,7 +799,7 @@ function goRound(n){
   card.innerHTML = `<div class="r-top"><span>Finding ${roundAt + 1} of ${rounds.length}</span><button type="button" id="rClose" aria-label="End rounds">×</button></div>
     <p class="r-area">${title}${view ? "" : " · not shown in a view"}</p>
     <p class="r-sym">${item.t}</p>
-    ${item.fix ? `<p class="r-rx"><b>Prescription:</b> ${item.fix}</p>` : ""}
+    ${item.fix ? `<p class="r-rx"><b>What to do:</b> ${item.fix}</p>` : ""}
     <div class="r-nav"><button type="button" id="rPrev" ${roundAt === 0 ? "disabled" : ""}>Back</button><button type="button" class="primary" id="rNext">${roundAt === rounds.length - 1 ? "Finish" : "Next"}</button></div>`;
   card.classList.add("show");
   document.getElementById("rClose").onclick = closeRounds;
@@ -1245,7 +1246,7 @@ function showTip(d, e){
       ${d.kind === "type" && t.list.length > 1 ? `<div class="note">Shared by ${t.list.slice(1, 5).map(x => esc(x.name)).join(", ")}</div>` : ""}`;
   }
   const iss = issuesOf(d.kind === "type" ? (t.list.find(x => issuesOf(x.name)) || t.list[0]).name : t.name);
-  if (iss) html += `<div class="t-fix">${iss.map(i => `<p>${i.t}${i.fix ? `<br><b>Prescription:</b> ${i.fix}` : ""}</p>`).join("")}</div>`;
+  if (iss) html += `<div class="t-fix">${iss.map(i => `<p>${i.t}${i.fix ? `<br><b>What to do:</b> ${i.fix}` : ""}</p>`).join("")}</div>`;
   tip.innerHTML = html; tip.classList.add("show");
   const r = stage.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
   let x = e.clientX - r.left + 16, y = e.clientY - r.top + 16;
