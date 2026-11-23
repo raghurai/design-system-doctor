@@ -90,6 +90,47 @@ body.dropping .stage::after{content:"Drop to add these files";position:absolute;
 .finding-group li .fix{display:block;margin-top:3px;font-size:13px;color:var(--muted)}
 .finding-group li .fix b{font-weight:600;color:var(--ink)}
 .finding-group li.gap::before{background:none;border:1.5px solid var(--flag);width:5px;height:5px}
+.report-head{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin:0 0 14px}
+.score{width:68px;height:68px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--sc) calc(var(--v)*1%),var(--line) 0);position:relative}
+.score::before{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--panel)}
+.score b{position:relative;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.score small{position:absolute;bottom:13px;font-size:9.5px;color:var(--muted)}
+.verdict{margin:0;font-size:14px;line-height:1.45}
+.verdict b{display:block;font-family:var(--serif);font-weight:400;font-size:20px;margin-bottom:2px}
+.rounds-btn{width:100%;margin:0 0 18px;padding:10px 12px;border-radius:10px;border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;cursor:pointer}
+.rounds-btn:hover{filter:brightness(1.08)}
+.area{border:1px solid var(--line);border-radius:12px;padding:12px 12px 4px;margin:0 0 12px}
+.area-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
+.area-h h3{margin:0;font-size:14px;font-weight:600;color:var(--ink)}
+.pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:color-mix(in srgb,#2FA36B 18%,transparent);color:#2FA36B}
+.pill.warn{background:color-mix(in srgb,var(--flag) 18%,transparent);color:var(--flag)}
+.pill.crit{background:color-mix(in srgb,#E5484D 18%,transparent);color:#E5484D}
+.finding-group li.issue{cursor:pointer;border-radius:8px;margin:0 -6px;padding:4px 6px}
+.finding-group li.issue:hover,.finding-group li.active{background:color-mix(in srgb,var(--flag) 10%,transparent)}
+#rounds{position:absolute;left:16px;bottom:52px;width:min(380px,calc(100% - 32px));background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:0 12px 32px rgba(0,0,0,.28);display:none;z-index:5}
+#rounds.show{display:block}
+#rounds .r-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin:0 0 8px}
+#rounds .r-top button{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px}
+#rounds .r-area{font-size:12px;font-weight:600;color:var(--flag);margin:0 0 4px}
+#rounds .r-sym{font-size:14px;line-height:1.45;margin:0 0 8px}
+#rounds .r-rx{font-size:13px;line-height:1.45;margin:0 0 12px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--accent) 10%,transparent)}
+#rounds .r-rx b{color:var(--accent)}
+#rounds .r-nav{display:flex;gap:8px;justify-content:flex-end}
+#rounds .r-nav button{padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--field);color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
+#rounds .r-nav button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+#rounds .r-nav button:disabled{opacity:.4;cursor:default}
+#intake{position:absolute;inset:0;pointer-events:none;display:none;z-index:4}
+#intake.show{display:block}
+#intake .beam{position:absolute;left:0;right:0;height:2px;top:12%;background:var(--accent);box-shadow:0 0 18px 4px color-mix(in srgb,var(--accent) 45%,transparent);opacity:.8;animation:beam 1.4s ease-in-out forwards}
+@keyframes beam{from{top:12%}to{top:88%;opacity:0}}
+#intake .chart{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 18px;min-width:220px;font-size:13.5px;box-shadow:0 12px 32px rgba(0,0,0,.25)}
+#intake .chart p{margin:0 0 8px;font-weight:600}
+#intake .chart ul{margin:0;padding:0}
+#intake .chart li{list-style:none;color:var(--muted);margin:3px 0}
+#intake .chart li.done{color:var(--ink)}
+#intake .chart li.done::before{content:"\2713  ";color:#2FA36B}
+@media (prefers-reduced-motion:reduce){#intake .beam{display:none}}
 code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em}
 
 .stage{position:relative;overflow:hidden;min-height:0}
@@ -191,6 +232,8 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
       <button type="button" id="resetBtn">Reset view</button>
     </div>
     <div id="tip" role="tooltip"></div>
+    <div id="intake" aria-hidden="true"><div class="beam"></div><div class="chart"><p>Reading your chart…</p><ul id="intakeList"></ul></div></div>
+    <section id="rounds" aria-live="polite" aria-label="Guided rounds"></section>
   </main>
 </div>
 
@@ -545,7 +588,8 @@ function insights(m){
   const cf = [], base = m.baseColors;
   if (base.length) {
     const aliasCount = m.colors.length - base.length;
-    if (aliasCount) cf.push({ t: `${aliasCount} semantic tokens point to existing colors and share their positions in the view.` });
+    if (aliasCount) cf.push({ t: `${aliasCount} semantic tokens point to existing colors and share their positions in the view.`, fix: `Good practice. Keep adding new UI colors as aliases of these base colors instead of new hex values, so the palette doesn't grow by accident.` });
+    else if (base.length > 8) cf.push({ gap: true, t: "No semantic color tokens found; every color is a raw value.", fix: `Add a semantic layer (for example <code>bg.page</code>, <code>text.primary</code>, <code>border.subtle</code>) that points to these base colors, so components use roles instead of raw swatches.` });
     const pairs = [];
     for (let i = 0; i < base.length; i++) for (let j = i + 1; j < base.length; j++) {
       const d = dE(base[i].ok, base[j].ok);
@@ -553,7 +597,7 @@ function insights(m){
     }
     pairs.sort((a, b) => a[2] - b[2]);
     pairs.slice(0, 6).forEach(([a, b, d]) => cf.push({ flag: true, names: [a.name, b.name], t: `<code>${esc(a.name)}</code> and <code>${esc(b.name)}</code> are nearly identical (ΔE ${d.toFixed(3)}).`, fix: `Keep one. Point <code>${esc(b.name)}</code> to <code>{${esc(a.name)}}</code>, or move it far enough to be a distinct step.` }));
-    if (pairs.length > 6) cf.push({ flag: true, t: `${pairs.length - 6} more near-duplicate pairs.` });
+    if (pairs.length > 6) cf.push({ flag: true, names: pairs.slice(6).flatMap(([a, b]) => [a.name, b.name]), t: `${pairs.length - 6} more near-duplicate pairs.`, fix: `They're marked with ! in Color space. Merge each pair the same way: keep one value and alias the other to it.` });
     for (const f of m.families) {
       if (!f.numeric || f.items.length < 3) continue;
       const Ls = f.items.map(i => i.c.ok.L);
@@ -569,7 +613,7 @@ function insights(m){
     const chromatic = base.filter(c => c.ok.C > 0.04);
     if (chromatic.length) {
       const sectors = new Set(chromatic.map(c => Math.floor((c.ok.h * 180 / Math.PI) / 30) % 12));
-      cf.push({ t: `Chromatic colors occupy ${sectors.size} of 12 hue sectors (30° each).` });
+      cf.push({ gap: sectors.size < 4, t: `Chromatic colors occupy ${sectors.size} of 12 hue sectors (30° each).`, fix: sectors.size < 4 ? `The palette is narrow. Add at least one more distinct hue so charts, tags and status colors can be told apart.` : sectors.size > 9 ? `That's a wide spread. Make sure each hue has a job (brand, status, data viz); drop hues nothing uses.` : `A healthy spread. When you add a hue, give it a purpose and a full ramp rather than a single swatch.` });
     }
     const hueOf = c => (c.ok.h * 180 / Math.PI + 360) % 360;
     const need = [["red", h => h < 45 || h >= 345, "errors and destructive actions"], ["green", h => h >= 120 && h < 175, "success states"], ["amber/yellow", h => h >= 55 && h < 110, "warnings"]];
@@ -579,7 +623,7 @@ function insights(m){
     const longest = Math.max(0, ...ramps.map(f => f.items.length));
     const short = ramps.filter(f => longest >= 6 && f.items.length <= longest / 2);
     if (short.length) cf.push({ gap: true, t: `${short.length === 1 ? "One ramp is" : short.length + " ramps are"} much shorter than your longest (${longest} steps): ${short.map(f => `<code>${esc(f.name)}</code> (${f.items.length})`).join(", ")}.`, fix: `If these colors need light tints or dark shades (backgrounds, borders, hover states), fill in the missing steps.` });
-    if (!cf.some(x => x.flag || x.gap)) cf.push({ t: "No near-duplicates or broken lightness ramps." });
+    if (!cf.some(x => x.flag || x.gap)) cf.push({ t: "No near-duplicates or broken lightness ramps.", fix: "Keep it that way: when adding a color, check it in Color space first and add it as a full ramp." });
     groups.push(["Color", cf]);
   }
   for (const set of m.modeSets) {
@@ -587,21 +631,21 @@ function insights(m){
     const same = set.tokens.filter(t => { const p = t.per.filter(Boolean); return p.every(x => dE(x.ok, p[0].ok) < 0.002); });
     mf.push(same.length
       ? { flag: same.length > 0 && same.length < n, names: same.length < n ? same.map(t => t.name) : [], t: `${same.length} of ${n} tokens keep the same value in every mode${same.length <= 3 ? ": " + same.map(t => `<code>${esc(t.name)}</code>`).join(", ") : ""}.`, fix: same.length < n ? `Check each one. If it is meant to stay fixed (a brand color, say), leave it; otherwise give it a value tuned for ${set.modes.slice(1).map(esc).join(" and ")}, usually a lighter step of the same ramp for dark backgrounds.` : "" }
-      : { t: `All ${n} tokens change between modes.` });
+      : { t: `All ${n} tokens change between modes.`, fix: `Every token has a mode-specific value. Next, check text and surface pairs for contrast in each mode.` });
     let big = null;
     for (const t of set.tokens) {
       const p = t.per.filter(Boolean);
       const sw = Math.max(...p.map(x => x.ok.L)) - Math.min(...p.map(x => x.ok.L));
       if (!big || sw > big.sw) big = { t, sw, p };
     }
-    if (big && big.sw > 0.01) mf.push({ t: `Largest lightness swing: <code>${esc(big.t.name)}</code> moves ${big.sw.toFixed(2)} in L across ${set.modes.map(esc).join(" and ")}.` });
+    if (big && big.sw > 0.01) mf.push({ t: `Largest lightness swing: <code>${esc(big.t.name)}</code> moves ${big.sw.toFixed(2)} in L across ${set.modes.map(esc).join(" and ")}.`, fix: /bg|background|surface|page|canvas/i.test(big.t.name) ? `Expected for a background. Make sure text tokens swing the opposite way so contrast holds in both modes.` : `Big swings are fine for backgrounds and text. If this is a brand or accent color, check it still feels like the same color in both modes.` });
     groups.push([`${esc(set.collection)} modes`, mf]);
   }
   if (m.space.length) {
     const sf = [];
     const nonZero = m.space.filter(s => s.px > 0 && !s.aliasOf);
     const grid = [8, 4].find(g => nonZero.length && nonZero.every(s => s.px % g === 0));
-    if (grid) sf.push({ t: `Every spacing value sits on a ${grid}px grid.` });
+    if (grid) sf.push({ t: `Every spacing value sits on a ${grid}px grid.`, fix: `Keep new spacing values on the ${grid}px grid, and reuse an existing step before adding a new one.` });
     else {
       const off = nonZero.filter(s => s.px % 4 !== 0);
       sf.push({ flag: true, names: off.map(s => s.name), t: `${off.length} value${off.length > 1 ? "s" : ""} off the 4px grid: ${off.slice(0, 5).map(s => `<code>${esc(s.name)}</code> (${fmt(s.px, 1)}px)`).join(", ")}.`, fix: `Round to the grid: ${off.slice(0, 5).map(s => `<code>${esc(s.name)}</code> → <b>${Math.max(4, Math.round(s.px / 4) * 4)}px</b>`).join(", ")}.` });
@@ -623,10 +667,10 @@ function insights(m){
     const mean = Math.exp(ratios.reduce((s, r) => s + Math.log(r), 0) / ratios.length);
     const near = SCALES.reduce((a, b) => Math.abs(b[0] - mean) < Math.abs(a[0] - mean) ? b : a);
     const spread = Math.max(...ratios) - Math.min(...ratios);
-    tf.push({ t: `${sizes.length} sizes from ${fmt(sizes[0], 1)} to ${fmt(sizes[sizes.length - 1], 1)}px, average step ×${mean.toFixed(3)}, closest to a ${near[1]} (${near[0]}).` });
+    tf.push({ t: `${sizes.length} sizes from ${fmt(sizes[0], 1)} to ${fmt(sizes[sizes.length - 1], 1)}px, average step ×${mean.toFixed(3)}, closest to a ${near[1]} (${near[0]}).`, fix: `Use ×${near[0]} as the rule for new sizes: the next size up would be about ${Math.round(sizes[sizes.length - 1] * near[0])}px, and the next down about ${Math.round(sizes[0] / near[0])}px.` });
     tf.push(spread > 0.12
       ? { flag: true, t: `Steps vary from ×${Math.min(...ratios).toFixed(2)} to ×${Math.max(...ratios).toFixed(2)}, so the scale isn't strictly modular.` }
-      : { t: "Steps are close to a consistent ratio." });
+      : { t: "Steps are close to a consistent ratio.", fix: "Keep it modular: derive any new size from the same ratio rather than picking a round number." });
     if (spread > 0.12) {
       const bi = sizes.reduce((b, x, i) => Math.abs(x - 16) < Math.abs(sizes[b] - 16) ? i : b, 0);
       const ideal = sizes.map((_, i) => Math.round(sizes[bi] * Math.pow(near[0], i - bi)));
@@ -640,8 +684,14 @@ function insights(m){
   if (m.radius.length) {
     const rf = [], pill = m.radius.filter(r => r.px >= 999);
     const rest = m.radius.filter(r => r.px < 999).map(r => r.px).sort((a, b) => a - b);
-    if (rest.length) rf.push({ t: `Corners run from ${fmt(rest[0], 1)} to ${fmt(rest[rest.length - 1], 1)}px across ${rest.length} steps.` });
-    if (pill.length) rf.push({ t: `<code>${esc(pill[0].name)}</code> is a full pill radius.` });
+    if (rest.length) rf.push({ t: `Corners run from ${fmt(rest[0], 1)} to ${fmt(rest[rest.length - 1], 1)}px across ${rest.length} steps.`, fix: rest.length > 7 ? `That's a lot of corner options. Most systems need 4–6; merge steps that look alike in the Radius view.` : rest.length < 3 ? `Consider at least small, medium and large radii so inputs, cards and dialogs can differ.` : `A workable range. Map each step to a component size (small for inputs and tags, larger for cards and dialogs) and document it.` });
+    const odd = m.radius.filter(r => r.px > 0 && r.px < 999 && r.px % 2 !== 0);
+    if (odd.length) rf.push({ flag: true, names: odd.map(r => r.name), t: `${odd.length} radius value${odd.length > 1 ? "s are" : " is"} odd: ${odd.map(r => `<code>${esc(r.name)}</code> (${fmt(r.px, 1)}px)`).join(", ")}.`, fix: `Round to an even value so corners render crisply: ${odd.map(r => `<code>${esc(r.name)}</code> → <b>${Math.round(r.px / 2) * 2}px</b>`).join(", ")}.` });
+    const rseen = new Map(); for (const r of m.radius) if (!r.aliasOf) rseen.set(r.px, (rseen.get(r.px) || []).concat(r.name));
+    for (const [px, names] of rseen) if (names.length > 1) rf.push({ flag: true, names: names.slice(1), t: `${names.length} radius tokens share ${px >= 999 ? "the pill value" : fmt(px, 1) + "px"}: ${names.map(n => `<code>${esc(n)}</code>`).join(", ")}.`, fix: `Keep <code>${esc(names[0])}</code> and alias or remove the others.` });
+    for (let i = 1; i < rest.length; i++) if (rest[i - 1] > 0 && rest[i] / rest[i - 1] < 1.2 && rest[i] - rest[i - 1] < 2 && rest[i] !== rest[i - 1]) rf.push({ flag: true, names: m.radius.filter(r => r.px === rest[i]).map(r => r.name), t: `${fmt(rest[i - 1], 1)}px and ${fmt(rest[i], 1)}px are too close to tell apart.`, fix: `Merge them, or move one so neighboring steps differ by at least 2px.` });
+    if (pill.length) rf.push({ t: `<code>${esc(pill[0].name)}</code> is a full pill radius.`, fix: `Use it for pills, avatars and toggles only, so fully round shapes keep a clear meaning.` });
+    else rf.push({ gap: true, t: "No full pill radius.", fix: `Add <code>radius.full</code> (9999px) for pills, avatars and toggles instead of hard-coding large values.` });
     groups.push(["Radius", rf]);
   }
   const missing = [];
@@ -654,20 +704,119 @@ function insights(m){
   return groups;
 }
 
+let rounds = [], roundAt = -1, lastSig = "";
+function areaView(title, item){
+  if (title === "Color") return /ramp|steps|lightness/i.test(item.t) ? "ramps" : "space3d";
+  if (/ modes$/.test(title)) return "modes";
+  return { "Spacing": "spacing", "Type scale": "type", "Radius": "radius" }[title] || null;
+}
 function renderInsights(m){
   const el = document.getElementById("insights");
   const g = insights(m);
   m.issues = new Map();
   for (const [, items] of g) for (const i of items) for (const n of i.names || []) m.issues.set(n, (m.issues.get(n) || []).concat(i));
-  el.innerHTML = `<h2>Diagnosis</h2>
+  rounds = [];
+  let flags = 0, gaps = 0;
+  const areas = g.map(([title, items]) => {
+    const f = items.filter(i => i.flag).length, gp = items.filter(i => i.gap).length;
+    flags += f; gaps += gp;
+    const st = f >= 3 ? ["crit", "Critical"] : (f || gp) ? ["warn", "Needs attention"] : ["ok", "Healthy"];
+    items.forEach(i => { if (i.flag || i.gap) { i.round = rounds.length; rounds.push({ i, title, view: areaView(title, i) }); } });
+    return { title, items, st };
+  });
+  const score = Math.max(0, Math.min(100, Math.round(100 - flags * 7 - gaps * 3)));
+  const sick = areas.filter(a => a.st[0] !== "ok").map(a => a.title.toLowerCase());
+  const head = score >= 85 ? "In good health" : score >= 65 ? "Mostly healthy" : "Needs treatment";
+  const where = sick.length > 1 ? sick.slice(0, -1).join(", ") + " and " + sick[sick.length - 1] : sick[0];
+  const line = rounds.length ? `${rounds.length} finding${rounds.length > 1 ? "s" : ""} to look at, in ${where}.` : "Nothing needs attention right now.";
+  const sc = score >= 85 ? "#2FA36B" : score >= 65 ? "var(--flag)" : "#E5484D";
+  el.innerHTML = `<h2>Checkup report</h2>
+    <div class="report-head"><div class="score" style="--v:${score};--sc:${sc}" role="img" aria-label="Health score ${score} out of 100"><b>${score}</b><small>/100</small></div>
+    <p class="verdict"><b>${head}</b>${line}</p></div>
+    ${rounds.length ? `<button class="rounds-btn" id="roundsBtn" type="button">Walk me through it →</button>` : ""}
     <div class="counts">
       <div><b>${m.baseColors.length}</b><span>colors</span></div>
       <div><b>${m.space.length}</b><span>spacing</span></div>
       <div><b>${new Set(m.type.map(t => t.px)).size}</b><span>type sizes</span></div>
       <div><b>${m.radius.length}</b><span>radii</span></div>
     </div>` +
-    g.map(([title, items]) => `<div class="finding-group"><h3>${title}</h3><ul>${items.map(i => `<li class="${i.flag ? "flag" : i.gap ? "gap" : ""}"><span>${i.t}${i.fix ? `<span class="fix"><b>Suggestion:</b> ${i.fix}</span>` : ""}</span></li>`).join("")}</ul></div>`).join("");
+    areas.map(({ title, items, st }) => `<div class="area finding-group"><div class="area-h"><h3>${title}</h3><span class="pill ${st[0]}">${st[1]}</span></div><ul>${items.map(i => {
+      const isRound = i.round !== undefined;
+      return `<li class="${i.flag ? "flag" : i.gap ? "gap" : ""}${isRound ? " issue" : ""}"${isRound ? ` data-round="${i.round}" tabindex="0"` : ""}><span>${i.t}${i.fix ? `<span class="fix"><b>Prescription:</b> ${i.fix}</span>` : ""}</span></li>`;
+    }).join("")}</ul></div>`).join("");
+  const btn = document.getElementById("roundsBtn");
+  if (btn) btn.addEventListener("click", () => goRound(0));
+  el.querySelectorAll("li[data-round]").forEach(li => {
+    const go = () => goRound(+li.dataset.round);
+    li.addEventListener("click", go);
+    li.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  });
+  closeRounds();
+  const sig = [m.baseColors.length, m.space.length, m.type.length, m.radius.length, rounds.length].join();
+  if (sig !== lastSig) { lastSig = sig; intake(areas); }
 }
+
+function intake(areas){
+  const box = document.getElementById("intake"), list = document.getElementById("intakeList");
+  if (!renderer || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  list.innerHTML = areas.map(a => `<li>${a.title}</li>`).join("");
+  box.classList.remove("show"); void box.offsetWidth; box.classList.add("show");
+  const lis = [...list.children];
+  lis.forEach((li, i) => setTimeout(() => li.classList.add("done"), 220 + i * 200));
+  clearTimeout(intake.t);
+  intake.t = setTimeout(() => box.classList.remove("show"), 420 + lis.length * 200 + 350);
+}
+
+function fly(pos, radius){
+  const t0 = performance.now(), from = orbit.target.clone(), r0 = orbit.radius;
+  const D = matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 650;
+  cancelAnimationFrame(fly.raf);
+  const step = now => {
+    const k = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - k, 3);
+    orbit.target.lerpVectors(from, pos, e); orbit.radius = r0 + (radius - r0) * e;
+    if (k < 1) fly.raf = requestAnimationFrame(step);
+  };
+  fly.raf = requestAnimationFrame(step);
+}
+
+function goRound(n){
+  if (!rounds.length) return;
+  roundAt = Math.max(0, Math.min(rounds.length - 1, n));
+  const { i: item, title, view } = rounds[roundAt];
+  hideTip(true);
+  if (view && model) showView(view);
+  const names = item.names || [];
+  const mesh = pickables.find(p => { const t = p.userData.tok; return names.includes(t.name) || (t.list && t.list.some(x => names.includes(x.name))); });
+  if (mesh && preset) {
+    const w = new THREE.Vector3(); mesh.getWorldPosition(w);
+    fly(w, Math.max(160, preset.radius * 0.55)); setHover(mesh);
+  }
+  document.querySelectorAll("#insights li.active").forEach(l => l.classList.remove("active"));
+  const li = document.querySelector(`#insights li[data-round="${roundAt}"]`);
+  if (li) { li.classList.add("active"); li.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+  const card = document.getElementById("rounds");
+  card.innerHTML = `<div class="r-top"><span>Finding ${roundAt + 1} of ${rounds.length}</span><button type="button" id="rClose" aria-label="End rounds">×</button></div>
+    <p class="r-area">${title}${view ? "" : " · not shown in a view"}</p>
+    <p class="r-sym">${item.t}</p>
+    ${item.fix ? `<p class="r-rx"><b>Prescription:</b> ${item.fix}</p>` : ""}
+    <div class="r-nav"><button type="button" id="rPrev" ${roundAt === 0 ? "disabled" : ""}>Back</button><button type="button" class="primary" id="rNext">${roundAt === rounds.length - 1 ? "Finish" : "Next"}</button></div>`;
+  card.classList.add("show");
+  document.getElementById("rClose").onclick = closeRounds;
+  document.getElementById("rPrev").onclick = () => goRound(roundAt - 1);
+  document.getElementById("rNext").onclick = () => roundAt === rounds.length - 1 ? closeRounds() : goRound(roundAt + 1);
+  document.getElementById("rNext").focus({ preventScroll: true });
+}
+function closeRounds(){
+  roundAt = -1;
+  const card = document.getElementById("rounds"); if (card) card.classList.remove("show");
+  document.querySelectorAll("#insights li.active").forEach(l => l.classList.remove("active"));
+}
+document.addEventListener("keydown", e => {
+  if (roundAt < 0) return;
+  if (e.key === "Escape") closeRounds();
+  else if (e.target.tagName !== "CANVAS" && e.key === "ArrowRight") goRound(roundAt + 1);
+  else if (e.target.tagName !== "CANVAS" && e.key === "ArrowLeft") goRound(roundAt - 1);
+});
 
 /* ---------------- Three.js scene ---------------- */
 const canvas = document.getElementById("scene");
@@ -918,6 +1067,7 @@ const VIEWS = {
         const mesh = new THREE.Mesh(g, colorMat(seqColor(items.length > 1 ? i / (items.length - 1) : 0)));
         mesh.rotation.x = -Math.PI / 2; mesh.position.set(cxp, 0, czp);
         addPick(mesh, { kind: "radius", tok: r });
+        mark(r.name, cxp, 12, czp);
         label(`${r.name.split(".").pop()}  ${r.px >= 999 ? "full" : fmt(r.px, 1) + "px"}`, cxp, 0, czp + h + 10, "val chip", "translateX(-50%)");
       });
       return { target: [0, 0, 6], theta: 0, phi: 0.72, radius: Math.max(cols, rows) * (S + gap) * 1.7 + 160 };
@@ -1050,9 +1200,10 @@ function pick(e){
 }
 function setHover(obj){
   if (hovered === obj) return;
-  if (hovered) { hovered.material.emissive.copy(hovered.userData._em); }
+  const mt = o => [].concat(o.material)[0];
+  if (hovered && mt(hovered).emissive) { mt(hovered).emissive.copy(hovered.userData._em); }
   hovered = obj;
-  if (obj) { obj.userData._em = obj.userData._em || obj.material.emissive.clone(); obj.material.emissive.copy(obj.userData._em).addScalar(0.12); }
+  if (obj && mt(obj).emissive) { obj.userData._em = obj.userData._em || mt(obj).emissive.clone(); mt(obj).emissive.copy(obj.userData._em).addScalar(0.12); }
 }
 function hover(e){
   if (tip.classList.contains("pinned")) return;
@@ -1094,7 +1245,7 @@ function showTip(d, e){
       ${d.kind === "type" && t.list.length > 1 ? `<div class="note">Shared by ${t.list.slice(1, 5).map(x => esc(x.name)).join(", ")}</div>` : ""}`;
   }
   const iss = issuesOf(d.kind === "type" ? (t.list.find(x => issuesOf(x.name)) || t.list[0]).name : t.name);
-  if (iss) html += `<div class="t-fix">${iss.map(i => `<p>${i.t}${i.fix ? `<br><b>Suggestion:</b> ${i.fix}` : ""}</p>`).join("")}</div>`;
+  if (iss) html += `<div class="t-fix">${iss.map(i => `<p>${i.t}${i.fix ? `<br><b>Prescription:</b> ${i.fix}` : ""}</p>`).join("")}</div>`;
   tip.innerHTML = html; tip.classList.add("show");
   const r = stage.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
   let x = e.clientX - r.left + 16, y = e.clientY - r.top + 16;
