@@ -8,7 +8,7 @@ Design systems usually live in a pile of files: color variables here, spacing th
 2. **Build a mental map** of how colors, modes, spacing, type and radius relate.
 3. **Get suggestions** on what's missing or off, and how to fix it.
 
-**[Open Design System Doctor →](https://raghurai.github.io/Tokenspace/)**
+**[Open Design System Doctor →](https://raghurai.github.io/design-system-doctor/)**
 
 ![A design system's colors plotted in OKLCH space, with lightness as height and chroma as distance from the center](docs/color-space.png)
 
@@ -61,7 +61,7 @@ It's meant for audits, for design and engineering reviews, and for the next time
 
 1. In Figma, open **Variables**.
 2. Right-click a collection and choose **Export modes**. Export every collection, including primitives, so aliases between collections resolve.
-3. Open [Design System Doctor](https://raghurai.github.io/Tokenspace/) and drop all the files onto the page (JSON or ZIP).
+3. Open [Design System Doctor](https://raghurai.github.io/design-system-doctor/) and drop all the files onto the page (JSON or ZIP).
 
 Collections appear in the side panel. Any collection with more than one mode gets a mode picker and shows up in Mode shift.
 
@@ -86,8 +86,8 @@ Want to try it first? Click **Try the sample export** in the app, or use the fil
 Design System Doctor is a single HTML file with no build step.
 
 ```sh
-git clone https://github.com/raghurai/Tokenspace.git
-cd Tokenspace
+git clone https://github.com/raghurai/design-system-doctor.git
+cd design-system-doctor
 python3 -m http.server 8000
 ```
 
