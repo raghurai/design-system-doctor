@@ -1,8 +1,14 @@
-# Token Space
+# Design System Doctor
 
-**See your design system as a shape.**
+**See your design system as a whole, then learn what to improve.**
 
-**[Open Token Space →](https://raghurai.github.io/Tokenspace/)**
+Design systems usually live in a pile of files: color variables here, spacing there, type and dark mode somewhere else. Design System Doctor brings them together into one 3D shape, so you can:
+
+1. **See the whole system at once**, not a bunch of separate files.
+2. **Build a mental map** of how colors, modes, spacing, type and radius relate.
+3. **Get suggestions** on what's missing or off, and how to fix it.
+
+**[Open Design System Doctor →](https://raghurai.github.io/Tokenspace/)**
 
 ![A design system's colors plotted in OKLCH space, with lightness as height and chroma as distance from the center](docs/color-space.png)
 
@@ -16,7 +22,7 @@ It should have been easy. I knew the system well. But every way I tried to show 
 
 That's when it clicked. A design system isn't a list. It has a **shape**: colors that cluster or leave gaps, ramps that climb smoothly or stumble, scales that step evenly or drift. Lists hide that shape. You can only see it when you put the values in space.
 
-So I built Token Space.
+So I built Design System Doctor.
 
 ## What you see
 
@@ -38,13 +44,16 @@ Drop in your tokens and the system turns into something you can walk around.
 
 Seeing the shape changes how you take care of a system. A ramp that stumbles, two colors only a hair apart, a spacing value someone added under deadline: these are easy to wave through in a spreadsheet and hard to ignore once they're in front of you.
 
-Token Space points them out for you:
+Design System Doctor points them out, marks them with an orange **!** right on the shape, and suggests a fix for each one:
 
 - Near-duplicate colors (ΔE in OKLab under 0.015)
 - Color ramps whose lightness steps out of order
 - Spacing values off the 4px grid, and tokens that share a value
 - Type scales that drift from a consistent ratio, with the closest named interval
 - Semantic tokens that keep the same value in every mode
+- Missing pieces: no red, green or amber for errors, success and warnings; ramps much shorter than the rest; big jumps in the spacing scale; too few type sizes; no dark mode
+
+Each finding comes with a concrete suggestion, such as the lightness a ramp step should move to, the grid value to round a spacing token to, or the sizes a steady type scale would use. Hover a marked token in any view to see its suggestion there.
 
 It's meant for audits, for design and engineering reviews, and for the next time someone gives you three minutes.
 
@@ -52,7 +61,7 @@ It's meant for audits, for design and engineering reviews, and for the next time
 
 1. In Figma, open **Variables**.
 2. Right-click a collection and choose **Export modes**. Export every collection, including primitives, so aliases between collections resolve.
-3. Open [Token Space](https://raghurai.github.io/Tokenspace/) and drop all the files onto the page (JSON or ZIP).
+3. Open [Design System Doctor](https://raghurai.github.io/Tokenspace/) and drop all the files onto the page (JSON or ZIP).
 
 Collections appear in the side panel. Any collection with more than one mode gets a mode picker and shows up in Mode shift.
 
@@ -74,7 +83,7 @@ Want to try it first? Click **Try the sample export** in the app, or use the fil
 
 ## Run it locally
 
-Token Space is a single HTML file with no build step.
+Design System Doctor is a single HTML file with no build step.
 
 ```sh
 git clone https://github.com/raghurai/Tokenspace.git
