@@ -10,6 +10,10 @@ Design systems usually live in a pile of files: color variables here, spacing th
 
 **[Open Design System Doctor →](https://raghurai.github.io/design-system-doctor/)**
 
+[![Watch the 30-second launch video](docs/launch-thumbnail.png)](docs/launch-video.mp4)
+
+*Watch the 30-second launch video (click the image).*
+
 ![A design system's colors plotted in OKLCH space, with lightness as height and chroma as distance from the center](docs/color-space.png)
 
 ---
