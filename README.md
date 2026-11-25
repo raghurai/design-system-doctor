@@ -10,11 +10,11 @@ Design systems usually live in a pile of files: color variables here, spacing th
 
 **[Open Design System Doctor →](https://raghurai.github.io/design-system-doctor/)**
 
-[![Watch the 30-second launch video](docs/launch-thumbnail.png)](docs/launch-video.mp4)
+[![Watch the 24-second launch video](docs/launch-thumbnail.jpg)](docs/launch-video.mp4)
 
-*Watch the 30-second launch video (click the image).*
+*Watch the 24-second launch video (click the image).*
 
-![A design system's colors plotted in OKLCH space, with lightness as height and chroma as distance from the center](docs/color-space.png)
+![The checkup report beside the color space: a score of 62 out of 100, the verdict Needs treatment, and color findings that each end with a What to do](docs/checkup-report.png)
 
 ---
 
@@ -34,6 +34,8 @@ Drop in your tokens and the system turns into something you can walk around.
 
 **Color space.** Every color sits in OKLCH, a perceptual color space. Height is lightness, distance from the center is chroma, and the angle is hue. Clusters, gaps and near-duplicates become visible right away.
 
+![A design system's colors plotted in OKLCH space, with lightness as height and chroma as distance from the center](docs/color-space.png)
+
 **Color ramps.** Each color family becomes a row of towers whose heights follow perceptual lightness. A good ramp reads as a smooth slope. A step that's out of order is buried in a token list and impossible to miss here.
 
 ![Color families as rows of towers, with height showing lightness](docs/color-ramps.png)
@@ -42,7 +44,9 @@ Drop in your tokens and the system turns into something you can walk around.
 
 ![Semantic tokens moving between Light and Dark modes](docs/mode-shift.png)
 
-**Spacing, type scale and radius.** Spacing becomes bars, with values off the 4px grid highlighted. Font sizes stack into a pyramid whose outline is the curve of your scale. Each corner radius is drawn on a real tile, so you can feel the difference between 8 and 12.
+**Spacing, type scale and radius.** Spacing becomes bars, with values off the 4px grid highlighted. Font sizes become a staircase of real text, with the ratio between each step shown and uneven steps outlined. Each corner radius is drawn on a real tile, so you can feel the difference between 8 and 12.
+
+![Font sizes as a staircase of real text, with the ratio between steps labeled](docs/type-scale.png)
 
 ## Visual discipline
 
@@ -58,6 +62,12 @@ Design System Doctor points them out, marks them with an orange **!** right on t
 - Missing pieces: no red, green or amber for errors, success and warnings; ramps much shorter than the rest; big jumps in the spacing scale; too few type sizes; no dark mode
 
 Each finding comes with a concrete suggestion, such as the lightness a ramp step should move to, the grid value to round a spacing token to, or the sizes a steady type scale would use. Hover a marked token in any view to see its suggestion there.
+
+## The checkup
+
+Drop in your tokens and you also get a checkup report: a score out of 100, a one-line verdict, and the findings counted by area (color, semantic modes, spacing, type scale). The sample export scores 62 and comes back as *Needs treatment*, with six findings.
+
+Every finding is written in plain language and ends with a **What to do**: delete the near-duplicate and point it at the other token, make `red 600` darker so it sits between its neighbors, round `spacing.card-inset` to 32px, or use the exact sizes a steady scale would. If you'd rather not read the whole list, press **Walk me through it** and go through the findings one round at a time.
 
 It's meant for audits, for design and engineering reviews, and for the next time someone gives you three minutes.
 
