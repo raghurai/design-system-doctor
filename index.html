@@ -7,14 +7,13 @@
 <meta name="description" content="Drop in your Figma variable exports or design tokens and see your whole design system as one 3D shape instead of a pile of files, then get suggestions on what to improve.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#E7EAEE; --panel:#F8F9FB; --field:#FFFFFF; --ink:#18202D; --muted:#5A6476;
   --line:#CBD2DC; --accent:#2F4FE0; --accent-ink:#FFFFFF; --flag:#B5530A; --scene-line:#8E98A9;
   --tip:#FFFFFF; --shadow:0 8px 28px rgba(24,32,45,.16);
-  --sans:"Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --serif:"Instrument Serif", Georgia, "Times New Roman", serif;
+  --sans:-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+  --serif:ui-serif, "New York", Georgia, "Times New Roman", serif;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
@@ -48,7 +47,7 @@ button,input,textarea{font:inherit;color:inherit}
 .quiet{display:flex;gap:4px}
 .link-btn{background:none;border:0;padding:4px 6px;border-radius:6px;color:var(--accent);cursor:pointer;font-size:14px}
 .link-btn:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
-textarea{width:100%;height:220px;resize:vertical;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;tab-size:2}
+textarea{width:100%;height:220px;resize:vertical;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;tab-size:2}
 .hint{color:var(--muted);font-size:13px;margin:8px 0 14px}
 .primary{width:100%;background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:11px 16px;font-weight:600;cursor:pointer}
 .primary:hover{filter:brightness(1.07)}
@@ -131,7 +130,7 @@ body.dropping .stage::after{content:"Drop to add these files";position:absolute;
 #intake .chart li.done{color:var(--ink)}
 #intake .chart li.done::before{content:"\2713  ";color:#2FA36B}
 @media (prefers-reduced-motion:reduce){#intake .beam{display:none}}
-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em}
+code{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em}
 
 .stage{position:relative;overflow:hidden;min-height:0}
 #wrap{position:absolute;inset:0}
@@ -1016,7 +1015,7 @@ const VIEWS = {
         const g = cv.getContext("2d");
         g.fillStyle = card; g.fillRect(0, 0, cv.width, R);
         g.fillStyle = ink; g.textAlign = "center"; g.textBaseline = "alphabetic";
-        g.font = `500 ${Math.round(R / 1.25)}px "Instrument Sans", system-ui, sans-serif`;
+        g.font = `500 ${Math.round(R / 1.25)}px -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
         g.fillText("Ag", cv.width / 2, R * 0.78);
         const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
         const geo = new THREE.BoxGeometry(c.w, c.h, 3);
